@@ -1,3 +1,10 @@
+let loadSheets = async (billsDoc, listsDoc, credentials, config) => {
+    await billsDoc.useServiceAccountAuth(credentials, config.googleEmail);
+    await listsDoc.useServiceAccountAuth(credentials, config.googleEmail);
+    await billsDoc.loadInfo();
+    await listsDoc.loadInfo();
+}
+
 const getUsersList = async (listsDoc) => {
     const sheet = await listsDoc.sheetsByIndex[0];
     await sheet.loadCells();
@@ -90,5 +97,6 @@ let payBill = async (billsDoc, listsDoc, id, sum) => {
 module.exports = {
     getUsersList: getUsersList,
     createNewBill: createNewBill,
-    payBill: payBill
+    payBill: payBill,
+    loadSheets: loadSheets
 };

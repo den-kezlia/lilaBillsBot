@@ -1,19 +1,12 @@
 const TeleBot = require('telebot');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const GoogleSheetHelpers = require('./helpers/googleSheetHelpers');
-
 const credentials = require('./../config/lilabills-b15e8309c4d5.json');
 const config = require('./../config/config.json');
+
 const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
 const listsDoc = new GoogleSpreadsheet(config.lists);
-
-let loadSheets = async () => {
-    await billsDoc.useServiceAccountAuth(credentials, config.googleEmail);
-    await listsDoc.useServiceAccountAuth(credentials, config.googleEmail);
-    await billsDoc.loadInfo();
-    await listsDoc.loadInfo();
-}
-loadSheets();
+GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config);
 
 const bot = new TeleBot({
     token: config.telegramToken,
