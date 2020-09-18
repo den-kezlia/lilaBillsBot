@@ -1,5 +1,6 @@
 const TeleBot = require('telebot');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
+const GoogleSheetHelpers = require('./helpers/googleSheetHelpers');
 
 const credentials = require('./../config/lilabills-b15e8309c4d5.json');
 const config = require('./../config/config.json');
@@ -14,99 +15,6 @@ let loadSheets = async () => {
 }
 loadSheets();
 
-let getSheetTitle = async () => {
-    return billsDoc.title;
-}
-
-let getUsersList = async () => {
-    const sheet = await listsDoc.sheetsByIndex[0];
-    await sheet.loadCells();
-
-    let users = [];
-    let iterator = 0;
-    while (true) {
-        const name = sheet.getCell(iterator, 0).value;
-        const id = sheet.getCell(iterator, 1).value;
-        if (!name) {
-            break;
-        }
-        iterator++;
-        users.push({name: name, id: id});
-    }
-
-    return users;
-}
-
-let createNewBill = async (bill) => {
-    const version = billsDoc.sheetCount + 1;
-    const currentBillSheet = await billsDoc.sheetsByIndex[0];
-    await currentBillSheet.loadCells();
-
-    const newBillSheet = await billsDoc.addSheet({
-        index: 0,
-        title: `V${version} - ${bill.price} - ${bill.date}`
-    });
-    await newBillSheet.loadCells();
-
-    const priceCell = newBillSheet.getCell(0, 0);
-    const dateCell = newBillSheet.getCell(0, 1);
-    const descriptionCell = newBillSheet.getCell(0, 2);
-    const namesTitleCell = newBillSheet.getCell(1, 0);
-    const balanceTitleCell = newBillSheet.getCell(1, 1);
-    priceCell.value = bill.price;
-    dateCell.value = bill.date;
-    descriptionCell.value = bill.description;
-    namesTitleCell.value = 'Имена';
-    balanceTitleCell.value = 'Баланс';
-
-    const usersList = await getUsersList();
-    usersList.map((user, index) => {
-        const i = index + 2;
-        const userBalance = currentBillSheet.getCell(i, 1).value;
-        const userNameCell = newBillSheet.getCell(i, 0);
-        const userFormulaCell = newBillSheet.getCell(i, 1);
-        const userBalanceCell = newBillSheet.getCell(i, 2);
-
-        userNameCell.value = user.name;
-        userFormulaCell.formula = `=SUM(C${i + 1}:Z${i + 1})-A1`;
-        userBalanceCell.value = userBalance;
-    });
-
-    await newBillSheet.saveUpdatedCells();
-
-    return;
-}
-
-let payBill = async (id, sum) => {
-    const usersList = await getUsersList();
-    let userRow;
-    usersList.forEach((user, index) => {
-        if (user.id === id) {
-            userRow = index + 2;
-        }
-    });
-
-    const currentBillSheet = await billsDoc.sheetsByIndex[0];
-    await currentBillSheet.loadCells();
-
-    if (userRow) {
-        let iterator = 2;
-        while (true) {
-            const value = currentBillSheet.getCell(userRow, iterator).value;
-            if (!value) {
-                break;
-            }
-            iterator++;
-        }
-
-        const newBillCell = currentBillSheet.getCell(userRow, iterator);
-        newBillCell.value = sum;
-        await currentBillSheet.saveUpdatedCells();
-    }
-
-    return;
-}
-
 const bot = new TeleBot({
     token: config.telegramToken,
     usePlugins: ['askUser']
@@ -119,22 +27,11 @@ bot.on(['/start', '/back'], msg => {
         ['/payBill', '/createBill']
     ], {resize: true});
 
-    try {
-        getSheetTitle().then(message => {
-            bot.sendMessage(msg.from.id, message);
-        })
-    } catch (error) {
-        console.log(error);
-    }
-
-    bot.sendMessage(msg.from.id, 'Keyboard example.', {replyMarkup});
-
-    return;
+    return bot.sendMessage(msg.from.id, 'Keyboard example.', {replyMarkup});
 });
 
 bot.on('/payBill', msg => {
     const id = msg.from.id;
-    // Ask user name
     return bot.sendMessage(id, 'Сумма', {ask: 'payBill', replyMarkup: 'hide'});
 });
 
@@ -145,7 +42,7 @@ bot.on('ask.payBill', msg => {
     const sum = Number(msg.text);
 
     try {
-        payBill(userName, sum).then(() => {
+        GoogleSheetHelpers.payBill(billsDoc, listsDoc, userName, sum).then(() => {
             return bot.sendMessage(id, `Оплата зафиксирована`);
         })
     } catch (error) {
@@ -185,7 +82,7 @@ bot.on('ask.price', msg => {
     };
 
     try {
-        createNewBill(bill).then(() => {
+        GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
             return bot.sendMessage(id, `Счет добавлен`);
         })
     } catch (error) {
