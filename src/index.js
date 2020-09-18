@@ -7,8 +7,8 @@ const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
 const listsDoc = new GoogleSpreadsheet(config.lists);
 
 let loadSheets = async () => {
-    await billsDoc.useServiceAccountAuth(credentials, 'lilabills@lilabills.iam.gserviceaccount.com');
-    await listsDoc.useServiceAccountAuth(credentials, 'lilabills@lilabills.iam.gserviceaccount.com');
+    await billsDoc.useServiceAccountAuth(credentials, config.googleEmail);
+    await listsDoc.useServiceAccountAuth(credentials, config.googleEmail);
     await billsDoc.loadInfo();
     await listsDoc.loadInfo();
 }
