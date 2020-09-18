@@ -1,0 +1,23 @@
+{
+  "name": "lilabillsbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/den-kezlia/lilaBillsBot.git"
+  },
+  "author": "Den Kezlia",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/den-kezlia/lilaBillsBot/issues"
+  },
+  "homepage": "https://github.com/den-kezlia/lilaBillsBot#readme",
+  "dependencies": {
+    "google-spreadsheet": "^3.0.13",
+    "telebot": "^1.4.1"
+  }
+}
