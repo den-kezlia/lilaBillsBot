@@ -28,14 +28,23 @@ bot.on('/payBill', msg => {
     return bot.sendMessage(id, 'Сумма', {ask: 'payBill', replyMarkup: 'hide'});
 });
 
+let sum = '';
 // Ask name event
 bot.on('ask.payBill', msg => {
     const id = msg.from.id;
+    sum = Number(msg.text);
+
+    return bot.sendMessage(id, 'Описание', {ask: 'payBillDescription', replyMarkup: 'hide'});
+});
+
+// Ask name event
+bot.on('ask.payBillDescription', msg => {
+    const id = msg.from.id;
     const userName = msg.from.username;
-    const sum = Number(msg.text);
+    const description = msg.text;
 
     try {
-        GoogleSheetHelpers.payBill(billsDoc, listsDoc, userName, sum).then(() => {
+        GoogleSheetHelpers.payBill(billsDoc, listsDoc, userName, sum, description).then(() => {
             return bot.sendMessage(id, `Оплата зафиксирована`);
         })
     } catch (error) {
