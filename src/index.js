@@ -8,16 +8,30 @@ const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
 const listsDoc = new GoogleSpreadsheet(config.lists);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config);
 
+const BUTTONS = {
+    payBill: {
+        label: '💸 Внести оплату',
+        command: '/payBill'
+    },
+    createBill: {
+        label: '📝 Создать новый счет',
+        command: '/createBill'
+    }
+};
+
 const bot = new TeleBot({
     token: config.telegramToken,
-    usePlugins: ['askUser']
+    usePlugins: ['askUser', 'namedButtons'],
+    pluginConfig: {
+        namedButtons: {
+            buttons: BUTTONS
+        }
+    }
 });
 
 bot.on(['/start', '/back'], msg => {
     let replyMarkup = bot.keyboard([
-        ['/buttons', '/inlineKeyboard'],
-        ['/start', '/hide'],
-        ['/payBill', '/createBill']
+        [BUTTONS.payBill.label, BUTTONS.createBill.label]
     ], {resize: true});
 
     return bot.sendMessage(msg.from.id, 'Keyboard example.', {replyMarkup});
