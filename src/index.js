@@ -34,12 +34,12 @@ bot.on(['/start', '/back'], msg => {
         [BUTTONS.payBill.label, BUTTONS.createBill.label]
     ], {resize: true});
 
-    return bot.sendMessage(msg.from.id, 'Keyboard example.', {replyMarkup});
+    return bot.sendMessage(msg.from.id, 'Выберите одну из команд', {replyMarkup});
 });
 
 bot.on('/payBill', msg => {
     const id = msg.from.id;
-    return bot.sendMessage(id, 'Сумма', {ask: 'payBill', replyMarkup: 'hide'});
+    return bot.sendMessage(id, 'Какую сумму вы потратили?', {ask: 'payBill', replyMarkup: 'hide'});
 });
 
 let sum = '';
@@ -48,7 +48,7 @@ bot.on('ask.payBill', msg => {
     const id = msg.from.id;
     sum = Number(msg.text);
 
-    return bot.sendMessage(id, 'Описание', {ask: 'payBillDescription', replyMarkup: 'hide'});
+    return bot.sendMessage(id, 'Опишите вашу трату:', {ask: 'payBillDescription', replyMarkup: 'hide'});
 });
 
 // Ask name event
@@ -59,7 +59,7 @@ bot.on('ask.payBillDescription', msg => {
 
     try {
         GoogleSheetHelpers.payBill(billsDoc, listsDoc, userName, sum, description).then(() => {
-            return bot.sendMessage(id, `Оплата зафиксирована`);
+            return bot.sendMessage(id, `Оплата зафиксирована 👍`);
         })
     } catch (error) {
         console.log(error)
@@ -69,7 +69,7 @@ bot.on('ask.payBillDescription', msg => {
 bot.on('/createBill', msg => {
     const id = msg.from.id;
     // Ask user name
-    return bot.sendMessage(id, 'Описание счета', {ask: 'description', replyMarkup: 'hide'});
+    return bot.sendMessage(id, 'Описание нового счет:', {ask: 'description', replyMarkup: 'hide'});
 });
 
 // Ask name event
@@ -79,7 +79,7 @@ bot.on('ask.description', msg => {
     description = msg.text;
 
     // Ask user age
-    return bot.sendMessage(id, `По сколько сдаем`, { ask: 'price' });
+    return bot.sendMessage(id, `По сколько сдаем?`, { ask: 'price' });
 });
 
 // Ask name event
@@ -99,7 +99,7 @@ bot.on('ask.price', msg => {
 
     try {
         GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
-            return bot.sendMessage(id, `Счет добавлен`);
+            return bot.sendMessage(id, `Счет добавлен 👍`);
         })
     } catch (error) {
         console.log(error)

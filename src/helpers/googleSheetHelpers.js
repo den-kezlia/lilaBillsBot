@@ -31,7 +31,7 @@ let createNewBill = async (billsDoc, listsDoc, bill) => {
 
     const newBillSheet = await billsDoc.addSheet({
         index: 0,
-        title: `V${version} - ${bill.price} - ${bill.date}`
+        title: `V${version} | ${bill.price} | ${bill.date}`
     });
     await newBillSheet.loadCells();
 
@@ -40,11 +40,13 @@ let createNewBill = async (billsDoc, listsDoc, bill) => {
     const descriptionCell = newBillSheet.getCell(0, 2);
     const namesTitleCell = newBillSheet.getCell(1, 0);
     const balanceTitleCell = newBillSheet.getCell(1, 1);
+    const prevBalanceTitleCell = newBillSheet.getCell(1, 2);
     priceCell.value = bill.price;
     dateCell.value = bill.date;
     descriptionCell.value = bill.description;
-    namesTitleCell.value = 'Имена';
-    balanceTitleCell.value = 'Баланс';
+    namesTitleCell.value = 'Имена:';
+    balanceTitleCell.value = 'Баланс:';
+    prevBalanceTitleCell.value = 'Баланс с прошлой сдачи:';
 
     const usersList = await getUsersList(listsDoc);
     usersList.map((user, index) => {
@@ -53,12 +55,10 @@ let createNewBill = async (billsDoc, listsDoc, bill) => {
         const userNameCell = newBillSheet.getCell(i, 0);
         const userFormulaCell = newBillSheet.getCell(i, 1);
         const userBalanceCell = newBillSheet.getCell(i, 2);
-        const userBalanceDescriptionCell = newBillSheet.getCell(i + 1, 2);
 
         userNameCell.value = user.name;
         userFormulaCell.formula = `=SUM(C${i + 1}:Z${i + 1})-A1`;
         userBalanceCell.value = userBalance;
-        userBalanceDescriptionCell.value = 'Баланс с прошлой сдачи';
     });
 
     await newBillSheet.saveUpdatedCells();
