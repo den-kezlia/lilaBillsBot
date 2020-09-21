@@ -20,6 +20,10 @@ const BUTTONS = {
     myBalance: {
         label: '⚖️ Показать мой баланс',
         command: '/showBalance'
+    },
+    showAllBalances: {
+        label: '⚒️ Показать баланс всех',
+        command: '/showAllBalances'
     }
 };
 
@@ -35,8 +39,8 @@ const bot = new TeleBot({
 
 bot.on(['/start', '/back'], msg => {
     let replyMarkup = bot.keyboard([
-        [BUTTONS.payBill.label, BUTTONS.createBill.label],
-        [BUTTONS.myBalance.label]
+        [BUTTONS.payBill.label, BUTTONS.myBalance.label],
+        [BUTTONS.createBill.label, BUTTONS.showAllBalances.label]
     ], {resize: true});
 
     return bot.sendMessage(msg.from.id, 'Выберите одну из команд', {replyMarkup});
@@ -122,6 +126,16 @@ bot.on('ask.price', msg => {
 bot.on('/showBalance', msg => {
     GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, msg.from.id).then(balance => {
         return bot.sendMessage(msg.from.id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+    });
+});
+
+bot.on('/showAllBalances', msg => {
+    GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
+        const message = allBalances.map(item => {
+            return `${item.name}: ${item.balance} ${item.balance >= 0 ? '🙂' : '🤨'}`;
+        });
+
+        return bot.sendMessage(msg.from.id, message.join('\n'));
     });
 });
 

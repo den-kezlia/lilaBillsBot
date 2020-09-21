@@ -120,10 +120,32 @@ const getUserBalance = async (billsDoc, listsDoc, id) => {
     return balance;
 }
 
+const getAllBalances = async (billsDoc) => {
+    let iterator = 2;
+    let allBalances = []
+    const currentBillSheet = await billsDoc.sheetsByIndex[0];
+    await currentBillSheet.loadCells();
+
+    while (true) {
+        const name = currentBillSheet.getCell(iterator, 0).value;
+        if (name) {
+            const balance = currentBillSheet.getCell(iterator, 1).value;
+            allBalances.push({name: name, balance: balance});
+
+            iterator = iterator + 2;
+        } else {
+            break;
+        }
+    }
+
+    return allBalances;
+}
+
 module.exports = {
     getUsersList: getUsersList,
     createNewBill: createNewBill,
     payBill: payBill,
     loadSheets: loadSheets,
-    getUserBalance: getUserBalance
+    getUserBalance: getUserBalance,
+    getAllBalances: getAllBalances
 };
