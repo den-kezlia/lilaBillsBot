@@ -3,47 +3,42 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 const GoogleSheetHelpers = require('./helpers/googleSheetHelpers');
 const credentials = require('./../config/lilabills-b15e8309c4d5.json');
 const config = require('./../config/config.json');
+const Buttons = require('./helpers/buttons');
+const AdminIds = require('./../config/adminIDs');
 
 const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
 const listsDoc = new GoogleSpreadsheet(config.lists);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config);
-
-const BUTTONS = {
-    payBill: {
-        label: '💸 Внести оплату',
-        command: '/payBill'
-    },
-    createBill: {
-        label: '📝 Создать новый счет',
-        command: '/createBill'
-    },
-    myBalance: {
-        label: '⚖️ Показать мой баланс',
-        command: '/showBalance'
-    },
-    showAllBalances: {
-        label: '⚒️ Показать баланс всех',
-        command: '/showAllBalances'
-    }
-};
 
 const bot = new TeleBot({
     token: config.telegramToken,
     usePlugins: ['askUser', 'namedButtons'],
     pluginConfig: {
         namedButtons: {
-            buttons: BUTTONS
+            buttons: Buttons
         }
     }
 });
 
-bot.on(['/start', '/back'], msg => {
-    let replyMarkup = bot.keyboard([
-        [BUTTONS.payBill.label, BUTTONS.myBalance.label],
-        [BUTTONS.createBill.label, BUTTONS.showAllBalances.label]
-    ], {resize: true});
+const isAdmin = (id) => {
+    return AdminIds.indexOf(id.toString()) > -1;
+}
 
-    return bot.sendMessage(msg.from.id, 'Выберите одну из команд', {replyMarkup});
+bot.on(['/start', '/back'], msg => {
+    const id = msg.from.id;
+    let buttons = [];
+    const userButtons = [Buttons.payBill.label, Buttons.myBalance.label];
+    const adminButtons = [Buttons.createBill.label, Buttons.showAllBalances.label];
+
+    buttons.push(userButtons);
+
+    if (isAdmin(id)) {
+        buttons.push(adminButtons);
+    }
+
+    let replyMarkup = bot.keyboard(buttons, {resize: true});
+
+    return bot.sendMessage(id, 'Выберите одну из команд', {replyMarkup});
 });
 
 bot.on('/payBill', msg => {
