@@ -49,7 +49,7 @@ let createNewBill = async (billsDoc, listsDoc, bill) => {
     prevBalanceTitleCell.value = 'Баланс с прошлой сдачи:';
 
     const usersList = await getUsersList(listsDoc);
-    usersList.map((user, index) => {
+    usersList.forEach((user, index) => {
         const i = index * 2 + 2;
         const userBalance = currentBillSheet.getCell(i, 1).value;
         const userNameCell = newBillSheet.getCell(i, 0);
@@ -75,11 +75,11 @@ let payBill = async (billsDoc, listsDoc, id, sum, description) => {
         }
     });
 
-    const currentBillSheet = await billsDoc.sheetsByIndex[0];
-    await currentBillSheet.loadCells();
-
     if (userRow) {
         let iterator = 2;
+        const currentBillSheet = await billsDoc.sheetsByIndex[0];
+        await currentBillSheet.loadCells();
+
         while (true) {
             const value = currentBillSheet.getCell(userRow, iterator).value;
             if (!value) {
@@ -101,9 +101,29 @@ let payBill = async (billsDoc, listsDoc, id, sum, description) => {
     return;
 }
 
+const getUserBalance = async (billsDoc, listsDoc, id) => {
+    let userRow;
+    let balance;
+    const usersList = await getUsersList(listsDoc);
+    usersList.forEach((user, index) => {
+        if (user.id === id) {
+            userRow = index * 2 + 2;
+        }
+    });
+
+    if (userRow) {
+        const currentBillSheet = await billsDoc.sheetsByIndex[0];
+        await currentBillSheet.loadCells();
+        balance = currentBillSheet.getCell(userRow, 1).value;
+    }
+
+    return balance;
+}
+
 module.exports = {
     getUsersList: getUsersList,
     createNewBill: createNewBill,
     payBill: payBill,
-    loadSheets: loadSheets
+    loadSheets: loadSheets,
+    getUserBalance: getUserBalance
 };

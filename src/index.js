@@ -16,6 +16,10 @@ const BUTTONS = {
     createBill: {
         label: '📝 Создать новый счет',
         command: '/createBill'
+    },
+    myBalance: {
+        label: '⚖️ Показать мой баланс',
+        command: '/showBalance'
     }
 };
 
@@ -31,7 +35,8 @@ const bot = new TeleBot({
 
 bot.on(['/start', '/back'], msg => {
     let replyMarkup = bot.keyboard([
-        [BUTTONS.payBill.label, BUTTONS.createBill.label]
+        [BUTTONS.payBill.label, BUTTONS.createBill.label],
+        [BUTTONS.myBalance.label]
     ], {resize: true});
 
     return bot.sendMessage(msg.from.id, 'Выберите одну из команд', {replyMarkup});
@@ -54,12 +59,13 @@ bot.on('ask.payBill', msg => {
 // Ask name event
 bot.on('ask.payBillDescription', msg => {
     const id = msg.from.id;
-    const userName = msg.from.username;
     const description = msg.text;
 
     try {
-        GoogleSheetHelpers.payBill(billsDoc, listsDoc, userName, sum, description).then(() => {
-            return bot.sendMessage(id, `Оплата зафиксирована 👍`);
+        GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, sum, description).then(() => {
+            GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
+                return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+            })
         })
     } catch (error) {
         console.log(error)
@@ -82,6 +88,18 @@ bot.on('ask.description', msg => {
     return bot.sendMessage(id, `По сколько сдаем?`, { ask: 'price' });
 });
 
+const sendNewBillNotifications = async (bill) => {
+    const usersList = await GoogleSheetHelpers.getUsersList(listsDoc);
+
+    usersList.forEach(user => {
+        if (user.id) {
+            GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, user.id).then(balance => {
+                return bot.sendMessage(user.id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+            })
+        }
+    });
+}
+
 // Ask name event
 bot.on('ask.price', msg => {
     const id = msg.from.id;
@@ -89,21 +107,22 @@ bot.on('ask.price', msg => {
     const date = new Date();
     const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
     const bill = {
-        id: 0003,
         date: formattedDate,
         description: description,
-        price: price,
-        currency: 'UAH',
-        status: 'unpaid'
+        price: price
     };
 
-    try {
-        GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
-            return bot.sendMessage(id, `Счет добавлен 👍`);
-        })
-    } catch (error) {
-        console.log(error)
-    }
+    GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
+        sendNewBillNotifications(bill);
+    }).then(() => {
+        return bot.sendMessage(id, `Счет добавлен 👍`);
+    })
+});
+
+bot.on('/showBalance', msg => {
+    GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, msg.from.id).then(balance => {
+        return bot.sendMessage(msg.from.id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+    });
 });
 
 // Buttons
