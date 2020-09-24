@@ -92,8 +92,10 @@ const sendNewBillNotifications = async (bill) => {
 
     usersList.forEach(user => {
         if (user.id) {
-            GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, user.id).then(balance => {
-                return bot.sendMessage(user.id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+            user.id.forEach(id => {
+                GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
+                    return bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+                })
             })
         }
     });

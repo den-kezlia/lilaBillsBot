@@ -14,11 +14,11 @@ const getUsersList = async (listsDoc) => {
     while (true) {
         const name = sheet.getCell(iterator, 0).value;
         const id = sheet.getCell(iterator, 1).value;
-        if (!name) {
+        if (!name || !id) {
             break;
         }
         iterator++;
-        users.push({name: name, id: id});
+        users.push({name: name, id: id.toString().split('|')});
     }
 
     return users;
@@ -31,7 +31,7 @@ let createNewBill = async (billsDoc, listsDoc, bill) => {
 
     const newBillSheet = await billsDoc.addSheet({
         index: 0,
-        title: `V${version} | ${bill.price} | ${bill.date}`
+        title: `V${version} | ${bill.price} | ${bill.date} | Random${(Math.random()*1000).toFixed()}`
     });
     await newBillSheet.loadCells();
 
@@ -49,19 +49,22 @@ let createNewBill = async (billsDoc, listsDoc, bill) => {
     prevBalanceTitleCell.value = 'Баланс с прошлой сдачи:';
 
     const usersList = await getUsersList(listsDoc);
-    usersList.forEach((user, index) => {
-        const i = index * 2 + 2;
-        const userBalance = currentBillSheet.getCell(i, 1).value;
-        const userNameCell = newBillSheet.getCell(i, 0);
-        const userFormulaCell = newBillSheet.getCell(i, 1);
-        const userBalanceCell = newBillSheet.getCell(i, 2);
+    if (usersList) {
+        usersList.forEach((user, index) => {
+            const i = index * 2 + 2;
+            const userBalance = currentBillSheet.getCell(i, 1).value;
+            const userNameCell = newBillSheet.getCell(i, 0);
+            const userFormulaCell = newBillSheet.getCell(i, 1);
+            const userBalanceCell = newBillSheet.getCell(i, 2);
+            const combinedUsersCount = user.id.length;
 
-        userNameCell.value = user.name;
-        userFormulaCell.formula = `=SUM(C${i + 1}:Z${i + 1})-A1`;
-        userBalanceCell.value = userBalance;
-    });
+            userNameCell.value = user.name;
+            userFormulaCell.formula = `=SUM(C${i + 1}:Z${i + 1})-A1*${combinedUsersCount}`;
+            userBalanceCell.value = userBalance;
+        });
 
-    await newBillSheet.saveUpdatedCells();
+        await newBillSheet.saveUpdatedCells();
+    }
 
     return;
 }
@@ -69,33 +72,36 @@ let createNewBill = async (billsDoc, listsDoc, bill) => {
 let payBill = async (billsDoc, listsDoc, id, sum, description) => {
     let userRow;
     const usersList = await getUsersList(listsDoc);
-    usersList.forEach((user, index) => {
-        if (user.id === id) {
-            userRow = index * 2 + 2;
-        }
-    });
 
-    if (userRow) {
-        let iterator = 2;
-        const currentBillSheet = await billsDoc.sheetsByIndex[0];
-        await currentBillSheet.loadCells();
-
-        while (true) {
-            const value = currentBillSheet.getCell(userRow, iterator).value;
-            if (!value) {
-                break;
+    if (usersList) {
+        usersList.forEach((user, index) => {
+            if (user.id.indexOf(id.toString()) > -1) {
+                userRow = index * 2 + 2;
             }
-            iterator++;
+        });
+
+        if (userRow) {
+            let iterator = 2;
+            const currentBillSheet = await billsDoc.sheetsByIndex[0];
+            await currentBillSheet.loadCells();
+
+            while (true) {
+                const value = currentBillSheet.getCell(userRow, iterator).value;
+                if (!value) {
+                    break;
+                }
+                iterator++;
+            }
+
+            const date = new Date();
+            const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+            const newBillCell = currentBillSheet.getCell(userRow, iterator);
+            const newBillDescriptionCell = currentBillSheet.getCell(userRow + 1, iterator);
+            newBillCell.value = sum;
+            newBillDescriptionCell.value = `${formattedDate} | ${description}`;
+
+            await currentBillSheet.saveUpdatedCells();
         }
-
-        const date = new Date();
-        const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
-        const newBillCell = currentBillSheet.getCell(userRow, iterator);
-        const newBillDescriptionCell = currentBillSheet.getCell(userRow + 1, iterator);
-        newBillCell.value = sum;
-        newBillDescriptionCell.value = `${formattedDate} | ${description}`;
-
-        await currentBillSheet.saveUpdatedCells();
     }
 
     return;
@@ -106,7 +112,7 @@ const getUserBalance = async (billsDoc, listsDoc, id) => {
     let balance;
     const usersList = await getUsersList(listsDoc);
     usersList.forEach((user, index) => {
-        if (user.id === id) {
+        if (user.id.indexOf(id.toString()) > -1) {
             userRow = index * 2 + 2;
         }
     });
