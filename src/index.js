@@ -9,7 +9,7 @@ const AdminIds = require('./../config/adminIDs');
 const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
 const listsDoc = new GoogleSpreadsheet(config.lists);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config).catch(error => {
-    console.log(`${error.stack}`);
+    console.log(error.stack);
 });
 
 const isAdmin = (id) => {
@@ -77,6 +77,7 @@ bot.on(['/start'], msg => {
 // PAY BILL //
 bot.on('/payBill', msg => {
     const id = msg.from.id;
+
     return bot.sendMessage(id, 'Какую сумму вы потратили?', {ask: 'payBill', replyMarkup: 'hide'});
 });
 
@@ -85,7 +86,12 @@ bot.on('ask.payBill', msg => {
     const id = msg.from.id;
     sum = Number(msg.text);
 
-    return bot.sendMessage(id, 'Опишите вашу трату:', {ask: 'payBillDescription', replyMarkup: 'hide'});
+    if (isNaN(sum)) {
+        return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'payBill', replyMarkup: 'hide'});
+    } else {
+        return bot.sendMessage(id, 'Опишите вашу трату:', {ask: 'payBillDescription', replyMarkup: 'hide'});
+    }
+
 });
 
 bot.on('ask.payBillDescription', msg => {
@@ -98,10 +104,10 @@ bot.on('ask.payBillDescription', msg => {
         GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
             return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
         }).catch(error => {
-            console.log(error);
+            console.log(error.stack);
         })
     }).catch(error => {
-        console.log(error);
+        console.log(error.stack);
     })
 });
 // PAY BILL //
@@ -155,8 +161,7 @@ bot.on('/showBalance', msg => {
             return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
         })
         .catch(error => {
-            var a = error;
-            var b = 4;
+            console.log(error.stack);
         });
 });
 // SHOW BALANCE //
