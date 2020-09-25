@@ -113,7 +113,7 @@ bot.on('ask.payBillDescription', msg => {
 // PAY BILL //
 
 
-// CREATE BIL //
+// CREATE BILL //
 bot.on('/createBill', msg => {
     const id = msg.from.id;
 
@@ -131,6 +131,11 @@ bot.on('ask.description', msg => {
 bot.on('ask.price', msg => {
     const id = msg.from.id;
     const price = Number(msg.text);
+
+    if (isNaN(price)) {
+        return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'price', replyMarkup: 'hide'});
+    }
+
     const date = new Date();
     const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
     const bill = {
@@ -147,7 +152,7 @@ bot.on('ask.price', msg => {
         return bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
     })
 });
-// CREATE BIL //
+// CREATE BILL //
 
 
 // SHOW BALANCE //
