@@ -60,15 +60,15 @@ bot.on('ask.payBillDescription', msg => {
     const id = msg.from.id;
     const description = msg.text;
 
-    try {
-        GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, sum, description).then(() => {
-            GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-                return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
-            })
+    GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, sum, description).then(() => {
+        GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
+            return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+        }).catch(error => {
+            console.log(error);
         })
-    } catch (error) {
-        console.log(error)
-    }
+    }).catch(error => {
+        console.log(error);
+    })
 });
 
 bot.on('/createBill', msg => {
@@ -94,11 +94,18 @@ const sendNewBillNotifications = async (bill) => {
         if (user.id) {
             user.id.forEach(id => {
                 GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-                    return bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+                    bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`).catch(error => {
+                        console.log(`catch - ${error}`)
+                    });
+
+                }).catch(error => {
+                    console.log(`here - ${error}`);
                 })
             })
         }
     });
+
+    return;
 }
 
 // Ask name event
