@@ -8,7 +8,9 @@ const AdminIds = require('./../config/adminIDs');
 
 const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
 const listsDoc = new GoogleSpreadsheet(config.lists);
-GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config);
+GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config).catch(error => {
+    console.log(`${error.stack}`);
+});
 
 const isAdmin = (id) => {
     return AdminIds.indexOf(id.toString()) > -1;
@@ -20,10 +22,14 @@ const sendNewBillNotifications = async (bill) => {
     usersList.forEach(user => {
         if (user.id) {
             user.id.forEach(id => {
-                GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-                    bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`).catch(error => {
-                        console.log(`catch - ${error}`)
-                    });
+                GoogleSheetHelpers
+                    .getUserBalance(billsDoc, listsDoc, id)
+                    .then(balance => {
+                        bot
+                            .sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`)
+                            .catch(error => {
+                            console.log(`error code - ${error.error_code}. ${error.description}. In sendNewBillNotifications method`)
+                        });
 
                 }).catch(error => {
                     console.log(`here - ${error}`);
@@ -33,6 +39,20 @@ const sendNewBillNotifications = async (bill) => {
     });
 
     return;
+}
+
+const generateStartButtons = (id) => {
+    let buttons = [];
+    const userButtons = [Buttons.payBill.label, Buttons.myBalance.label];
+    const adminButtons = [Buttons.createBill.label, Buttons.showAllBalances.label];
+
+    buttons.push(userButtons);
+
+    if (isAdmin(id)) {
+        buttons.push(adminButtons);
+    }
+
+    return buttons;
 }
 
 const bot = new TeleBot({
@@ -45,25 +65,16 @@ const bot = new TeleBot({
     }
 });
 
-
-
 bot.on(['/start'], msg => {
     const id = msg.from.id;
-    let buttons = [];
-    const userButtons = [Buttons.payBill.label, Buttons.myBalance.label];
-    const adminButtons = [Buttons.createBill.label, Buttons.showAllBalances.label];
-
-    buttons.push(userButtons);
-
-    if (isAdmin(id)) {
-        buttons.push(adminButtons);
-    }
-
-    let replyMarkup = bot.keyboard(buttons, {resize: true});
+    const buttons = generateStartButtons(id);
+    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
     return bot.sendMessage(id, 'Выберите одну из команд', {replyMarkup});
 });
 
+
+// PAY BILL //
 bot.on('/payBill', msg => {
     const id = msg.from.id;
     return bot.sendMessage(id, 'Какую сумму вы потратили?', {ask: 'payBill', replyMarkup: 'hide'});
@@ -80,10 +91,12 @@ bot.on('ask.payBill', msg => {
 bot.on('ask.payBillDescription', msg => {
     const id = msg.from.id;
     const description = msg.text;
+    const buttons = generateStartButtons(id);
+    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
     GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, sum, description).then(() => {
         GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-            return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
+            return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
         }).catch(error => {
             console.log(error);
         })
@@ -91,7 +104,10 @@ bot.on('ask.payBillDescription', msg => {
         console.log(error);
     })
 });
+// PAY BILL //
 
+
+// CREATE BIL //
 bot.on('/createBill', msg => {
     const id = msg.from.id;
 
@@ -116,28 +132,51 @@ bot.on('ask.price', msg => {
         description: description,
         price: price
     };
+    const buttons = generateStartButtons(id);
+    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
     GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
         sendNewBillNotifications(bill);
     }).then(() => {
-        return bot.sendMessage(id, `Счет добавлен 👍`);
+        return bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
     })
 });
+// CREATE BIL //
 
+
+// SHOW BALANCE //
 bot.on('/showBalance', msg => {
-    GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, msg.from.id).then(balance => {
-        return bot.sendMessage(msg.from.id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`);
-    });
-});
+    const id = msg.from.id;
+    const buttons = generateStartButtons(id);
+    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
+    GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id)
+        .then(balance => {
+            return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
+        })
+        .catch(error => {
+            var a = error;
+            var b = 4;
+        });
+});
+// SHOW BALANCE //
+
+
+// SHOW ALL BALANCEs //
 bot.on('/showAllBalances', msg => {
+    const id = msg.from.id;
+    const buttons = generateStartButtons(id);
+    const replyMarkup = bot.keyboard(buttons, {resize: true});
+
     GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
         const message = allBalances.map(item => {
             return `${item.name}: ${item.balance} ${item.balance >= 0 ? '🙂' : '🤨'}`;
         });
 
-        return bot.sendMessage(msg.from.id, message.join('\n'));
+        return bot.sendMessage(id, message.join('\n'), {replyMarkup});
     });
 });
+// SHOW ALL BALANCEs //
+
 
 bot.connect();
