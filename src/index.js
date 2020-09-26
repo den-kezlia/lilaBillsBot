@@ -25,12 +25,10 @@ const sendNewBillNotifications = async (bill) => {
                 GoogleSheetHelpers
                     .getUserBalance(billsDoc, listsDoc, id)
                     .then(balance => {
-                        bot
-                            .sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`)
-                            .catch(error => {
+                        bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`)
+                        .catch(error => {
                             console.log(`error code - ${error.error_code}. ${error.description}. In sendNewBillNotifications method`)
                         });
-
                 }).catch(error => {
                     console.log(`here - ${error}`);
                 })
@@ -55,6 +53,10 @@ const generateStartButtons = (id) => {
     return buttons;
 }
 
+const sendBlockedMessage = (id) => {
+    return bot.sendMessage(id, 'Тестовый бот', {replyMarkup: 'hide'});
+}
+
 const bot = new TeleBot({
     token: config.telegramToken,
     usePlugins: ['askUser', 'namedButtons'],
@@ -67,10 +69,17 @@ const bot = new TeleBot({
 
 bot.on(['/start'], msg => {
     const id = msg.from.id;
-    const buttons = generateStartButtons(id);
-    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
-    return bot.sendMessage(id, 'Выберите одну из команд', {replyMarkup});
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            const buttons = generateStartButtons(id);
+            const replyMarkup = bot.keyboard(buttons, {resize: true});
+
+            return bot.sendMessage(id, 'Выберите одну из команд', {replyMarkup});
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 
 
@@ -78,37 +87,56 @@ bot.on(['/start'], msg => {
 bot.on('/payBill', msg => {
     const id = msg.from.id;
 
-    return bot.sendMessage(id, 'Какую сумму вы потратили?', {ask: 'payBill', replyMarkup: 'hide'});
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            return bot.sendMessage(id, 'Какую сумму вы потратили?', {ask: 'payBill', replyMarkup: 'hide'});
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 
 let sum = '';
 bot.on('ask.payBill', msg => {
     const id = msg.from.id;
-    sum = Number(msg.text);
 
-    if (isNaN(sum)) {
-        return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'payBill', replyMarkup: 'hide'});
-    } else {
-        return bot.sendMessage(id, 'Опишите вашу трату:', {ask: 'payBillDescription', replyMarkup: 'hide'});
-    }
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            sum = Number(msg.text);
 
+            if (isNaN(sum)) {
+                return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'payBill', replyMarkup: 'hide'});
+            } else {
+                return bot.sendMessage(id, 'Опишите вашу трату:', {ask: 'payBillDescription', replyMarkup: 'hide'});
+            }
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 
 bot.on('ask.payBillDescription', msg => {
     const id = msg.from.id;
-    const description = msg.text;
-    const buttons = generateStartButtons(id);
-    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
-    GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, sum, description).then(() => {
-        GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-            return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
-        }).catch(error => {
-            console.log(error.stack);
-        })
-    }).catch(error => {
-        console.log(error.stack);
-    })
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            const description = msg.text;
+            const buttons = generateStartButtons(id);
+            const replyMarkup = bot.keyboard(buttons, {resize: true});
+
+            GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, sum, description).then(() => {
+                GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
+                    return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
+                }).catch(error => {
+                    console.log(error.stack);
+                })
+            }).catch(error => {
+                console.log(error.stack);
+            })
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 // PAY BILL //
 
@@ -117,40 +145,59 @@ bot.on('ask.payBillDescription', msg => {
 bot.on('/createBill', msg => {
     const id = msg.from.id;
 
-    return bot.sendMessage(id, 'Описание нового счет:', {ask: 'description', replyMarkup: 'hide'});
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            return bot.sendMessage(id, 'Описание нового счет:', {ask: 'description', replyMarkup: 'hide'});
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 
 let description = '';
 bot.on('ask.description', msg => {
     const id = msg.from.id;
-    description = msg.text;
 
-    return bot.sendMessage(id, `По сколько сдаем?`, { ask: 'price' });
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            description = msg.text;
+            return bot.sendMessage(id, `По сколько сдаем?`, { ask: 'price' });
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 
 bot.on('ask.price', msg => {
     const id = msg.from.id;
-    const price = Number(msg.text);
 
-    if (isNaN(price)) {
-        return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'price', replyMarkup: 'hide'});
-    }
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            const price = Number(msg.text);
 
-    const date = new Date();
-    const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
-    const bill = {
-        date: formattedDate,
-        description: description,
-        price: price
-    };
-    const buttons = generateStartButtons(id);
-    const replyMarkup = bot.keyboard(buttons, {resize: true});
+            if (isNaN(price)) {
+                return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'price', replyMarkup: 'hide'});
+            }
 
-    GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
-        sendNewBillNotifications(bill);
-    }).then(() => {
-        return bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
-    })
+            const date = new Date();
+            const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+            const bill = {
+                date: formattedDate,
+                description: description,
+                price: price
+            };
+            const buttons = generateStartButtons(id);
+            const replyMarkup = bot.keyboard(buttons, {resize: true});
+
+            GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
+                sendNewBillNotifications(bill);
+            }).then(() => {
+                return bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
+            })
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 // CREATE BILL //
 
@@ -158,16 +205,23 @@ bot.on('ask.price', msg => {
 // SHOW BALANCE //
 bot.on('/showBalance', msg => {
     const id = msg.from.id;
-    const buttons = generateStartButtons(id);
-    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
-    GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id)
-        .then(balance => {
-            return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
-        })
-        .catch(error => {
-            console.log(error.stack);
-        });
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            const buttons = generateStartButtons(id);
+            const replyMarkup = bot.keyboard(buttons, {resize: true});
+
+            GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id)
+                .then(balance => {
+                    return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
+                })
+                .catch(error => {
+                    console.log(error.stack);
+                });
+        } else {
+            sendBlockedMessage(id);
+        }
+    });
 });
 // SHOW BALANCE //
 
@@ -175,15 +229,22 @@ bot.on('/showBalance', msg => {
 // SHOW ALL BALANCEs //
 bot.on('/showAllBalances', msg => {
     const id = msg.from.id;
-    const buttons = generateStartButtons(id);
-    const replyMarkup = bot.keyboard(buttons, {resize: true});
 
-    GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
-        const message = allBalances.map(item => {
-            return `${item.name}: ${item.balance} ${item.balance >= 0 ? '🙂' : '🤨'}`;
-        });
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            const buttons = generateStartButtons(id);
+            const replyMarkup = bot.keyboard(buttons, {resize: true});
 
-        return bot.sendMessage(id, message.join('\n'), {replyMarkup});
+            GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
+                const message = allBalances.map(item => {
+                    return `${item.name}: ${item.balance} ${item.balance >= 0 ? '🙂' : '🤨'}`;
+                });
+
+                return bot.sendMessage(id, message.join('\n'), {replyMarkup});
+            });
+        } else {
+            sendBlockedMessage(id);
+        }
     });
 });
 // SHOW ALL BALANCEs //

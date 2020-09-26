@@ -147,11 +147,25 @@ const getAllBalances = async (billsDoc) => {
     return allBalances;
 }
 
+const isUserInList = async (listsDoc, id) => {
+    let isUserInList = false;
+    const usersList = await getUsersList(listsDoc);
+
+    usersList.forEach(user => {
+        if (user.id.indexOf(id.toString()) > -1) {
+            isUserInList = true;
+        }
+    });
+
+    return isUserInList;
+}
+
 module.exports = {
     getUsersList: getUsersList,
     createNewBill: createNewBill,
     payBill: payBill,
     loadSheets: loadSheets,
     getUserBalance: getUserBalance,
-    getAllBalances: getAllBalances
+    getAllBalances: getAllBalances,
+    isUserInList: isUserInList
 };
