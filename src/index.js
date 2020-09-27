@@ -11,6 +11,7 @@ const listsDoc = new GoogleSpreadsheet(config.lists);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config).catch(error => {
     console.log(error.stack);
 });
+let answers = {};
 
 const isAdmin = (id) => {
     return AdminIds.indexOf(id.toString()) > -1;
@@ -96,17 +97,18 @@ bot.on('/payBill', msg => {
     });
 });
 
-let sum = '';
 bot.on('ask.payBill', msg => {
     const id = msg.from.id;
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            sum = Number(msg.text);
+            const sum = Number(msg.text);
 
             if (isNaN(sum)) {
                 return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'payBill', replyMarkup: 'hide'});
             } else {
+                answers[id] = {};
+                answers[id].sum = sum;
                 return bot.sendMessage(id, 'Опишите вашу трату:', {ask: 'payBillDescription', replyMarkup: 'hide'});
             }
         } else {
@@ -124,9 +126,9 @@ bot.on('ask.payBillDescription', msg => {
             const buttons = generateStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
-            GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, sum, description).then(() => {
+            GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, answers[id].sum, description).then(() => {
                 GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-                    return bot.sendMessage(id, `Оплата '${sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
+                    return bot.sendMessage(id, `Оплата '${answers[id].sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
                 }).catch(error => {
                     console.log(error.stack);
                 })
@@ -154,13 +156,13 @@ bot.on('/createBill', msg => {
     });
 });
 
-let description = '';
 bot.on('ask.description', msg => {
     const id = msg.from.id;
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList && isAdmin(id)) {
-            description = msg.text;
+            answers[id] = {};
+            answers[id].description = msg.text;
             return bot.sendMessage(id, `По сколько сдаем?`, { ask: 'price' });
         } else {
             sendBlockedMessage(id);
@@ -183,7 +185,7 @@ bot.on('ask.price', msg => {
             const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
             const bill = {
                 date: formattedDate,
-                description: description,
+                description: answers[id].description,
                 price: price
             };
             const buttons = generateStartButtons(id);
