@@ -146,7 +146,7 @@ bot.on('/createBill', msg => {
     const id = msg.from.id;
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
-        if (isUserInList) {
+        if (isUserInList && isAdmin(id)) {
             return bot.sendMessage(id, 'Описание нового счет:', {ask: 'description', replyMarkup: 'hide'});
         } else {
             sendBlockedMessage(id);
@@ -159,7 +159,7 @@ bot.on('ask.description', msg => {
     const id = msg.from.id;
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
-        if (isUserInList) {
+        if (isUserInList && isAdmin(id)) {
             description = msg.text;
             return bot.sendMessage(id, `По сколько сдаем?`, { ask: 'price' });
         } else {
@@ -172,7 +172,7 @@ bot.on('ask.price', msg => {
     const id = msg.from.id;
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
-        if (isUserInList) {
+        if (isUserInList && isAdmin(id)) {
             const price = Number(msg.text);
 
             if (isNaN(price)) {
@@ -231,7 +231,7 @@ bot.on('/showAllBalances', msg => {
     const id = msg.from.id;
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
-        if (isUserInList) {
+        if (isUserInList && isAdmin(id)) {
             const buttons = generateStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
