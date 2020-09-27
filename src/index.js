@@ -5,11 +5,22 @@ const credentials = require('./../config/lilabills-b15e8309c4d5.json');
 const config = require('./../config/config.json');
 const Buttons = require('./helpers/buttons');
 const AdminIds = require('./../config/adminIDs');
+const winston = require('winston');
+
+const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.json(),
+    defaultMeta: { service: 'lila-bills-bot' },
+    transports: [
+      new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+      new winston.transports.File({ filename: 'logs/combined.log' }),
+    ],
+});
 
 const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
 const listsDoc = new GoogleSpreadsheet(config.lists);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config).catch(error => {
-    console.log(error.stack);
+    logger.error(new Error(error.stack));
 });
 let answers = {};
 
@@ -28,10 +39,10 @@ const sendNewBillNotifications = async (bill) => {
                     .then(balance => {
                         bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`)
                         .catch(error => {
-                            console.log(`error code - ${error.error_code}. ${error.description}. In sendNewBillNotifications method`)
+                            logger.error(new Error(`error code - ${error.error_code}. ${error.description}. In sendNewBillNotifications method`));
                         });
                 }).catch(error => {
-                    console.log(`here - ${error}`);
+                    logger.error(new Error(error.stack));
                 })
             })
         }
@@ -55,6 +66,8 @@ const generateStartButtons = (id) => {
 }
 
 const sendBlockedMessage = (id) => {
+    logger.warn(`We do not know him. id - ${id}`);
+
     return bot.sendMessage(id, 'Тестовый бот', {replyMarkup: 'hide'});
 }
 
@@ -71,6 +84,8 @@ const bot = new TeleBot({
 bot.on(['/start'], msg => {
     const id = msg.from.id;
 
+    logger.log('info', 'Start', msg.from);
+
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
             const buttons = generateStartButtons(id);
@@ -80,6 +95,8 @@ bot.on(['/start'], msg => {
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 
@@ -94,6 +111,8 @@ bot.on('/payBill', msg => {
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 
@@ -114,15 +133,23 @@ bot.on('ask.payBill', msg => {
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 
 bot.on('ask.payBillDescription', msg => {
     const id = msg.from.id;
+    const description = msg.text;
+
+    logger.log('info', 'payBill', {
+        id: id,
+        sum: answers[id].sum,
+        description: description
+    });
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const description = msg.text;
             const buttons = generateStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
@@ -130,14 +157,16 @@ bot.on('ask.payBillDescription', msg => {
                 GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
                     return bot.sendMessage(id, `Оплата '${answers[id].sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
                 }).catch(error => {
-                    console.log(error.stack);
+                    logger.error(new Error(error.stack));
                 })
             }).catch(error => {
-                console.log(error.stack);
+                logger.error(new Error(error.stack));
             })
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 // PAY BILL //
@@ -153,6 +182,8 @@ bot.on('/createBill', msg => {
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 
@@ -167,27 +198,36 @@ bot.on('ask.description', msg => {
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 
 bot.on('ask.price', msg => {
     const id = msg.from.id;
+    const price = Number(msg.text);
+    const date = new Date();
+    const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+    const bill = {
+        date: formattedDate,
+        description: answers[id].description,
+        price: price
+    };
+
+    logger.log('info', 'createBill', {
+        id: id,
+        price: price,
+        description: answers[id].description,
+        date: formattedDate
+    });
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList && isAdmin(id)) {
-            const price = Number(msg.text);
 
             if (isNaN(price)) {
                 return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'price', replyMarkup: 'hide'});
             }
 
-            const date = new Date();
-            const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
-            const bill = {
-                date: formattedDate,
-                description: answers[id].description,
-                price: price
-            };
             const buttons = generateStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
@@ -195,10 +235,14 @@ bot.on('ask.price', msg => {
                 sendNewBillNotifications(bill);
             }).then(() => {
                 return bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
-            })
+            }).catch(error => {
+                logger.error(new Error(error.stack));
+            });
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 // CREATE BILL //
@@ -218,11 +262,13 @@ bot.on('/showBalance', msg => {
                     return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
                 })
                 .catch(error => {
-                    console.log(error.stack);
+                    logger.error(new Error(error.stack));
                 });
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 // SHOW BALANCE //
@@ -243,10 +289,14 @@ bot.on('/showAllBalances', msg => {
                 });
 
                 return bot.sendMessage(id, message.join('\n'), {replyMarkup});
+            }).catch(error => {
+                logger.error(new Error(error.stack));
             });
         } else {
             sendBlockedMessage(id);
         }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
     });
 });
 // SHOW ALL BALANCEs //
