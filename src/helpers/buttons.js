@@ -4,15 +4,15 @@ module.exports = {
         command: '/payBill'
     },
     createBill: {
-        label: '📝 Создать новый счет',
+        label: '📝 Новый счет',
         command: '/createBill'
     },
     myBalance: {
-        label: '⚖️ Показать мой баланс',
+        label: '⚖️ Баланс',
         command: '/showBalance'
     },
     showAllBalances: {
-        label: '⚒️ Показать баланс всех',
+        label: '⚒️ Баланс всех',
         command: '/showAllBalances'
     }
 }
