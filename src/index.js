@@ -18,8 +18,8 @@ const logger = winston.createLogger({
     ],
 });
 
-const billsDoc = new GoogleSpreadsheet(config.googleSpreadsheet);
-const listsDoc = new GoogleSpreadsheet(config.lists);
+const billsDoc = new GoogleSpreadsheet(config.billsGoogleSheetID);
+const listsDoc = new GoogleSpreadsheet(config.listGoogleSheetID);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config).catch(error => {
     logger.error(new Error(error.stack));
 });

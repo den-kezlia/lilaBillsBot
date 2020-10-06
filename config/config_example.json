@@ -1,6 +1,6 @@
 {
     "telegramToken": "",
     "googleEmail": "",
-    "googleSpreadsheet": "",
-    "lists": ""
+    "billsGoogleSheetID": "",
+    "listGoogleSheetID": ""
 }
