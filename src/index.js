@@ -1,10 +1,10 @@
 const TeleBot = require('telebot');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const GoogleSheetHelpers = require('./helpers/googleSheetHelpers');
-const credentials = require('./../config/lilabills-b15e8309c4d5.json');
+const credentials = require('./../config/privateKey.json');
 const config = require('./../config/config.json');
 const Buttons = require('./helpers/buttons');
-const AdminIds = require('./../config/adminIDs');
+const AdminIds = require('../config/adminIDs');
 const winston = require('winston');
 const path = require('path');
 

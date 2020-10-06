@@ -1,3 +1,5 @@
 node_modules
-config
+config/adminIDs.js
+config/config.json
+config/privateKey.json
 logs
