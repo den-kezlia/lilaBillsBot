@@ -52,7 +52,7 @@ const sendNewBillNotifications = async (bill) => {
     return;
 }
 
-const generateStartButtons = (id) => {
+const getStartButtons = (id) => {
     let buttons = [];
     const userButtons = [Buttons.payBill.label, Buttons.myBalance.label];
     const adminButtons = [Buttons.createBill.label, Buttons.showAllBalances.label];
@@ -89,7 +89,7 @@ bot.on(['/start'], msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const buttons = generateStartButtons(id);
+            const buttons = getStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
             return bot.sendMessage(id, 'Выберите одну из команд', {replyMarkup});
@@ -151,7 +151,7 @@ bot.on('ask.payBillDescription', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const buttons = generateStartButtons(id);
+            const buttons = getStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
             GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, answers[id].sum, description).then(() => {
@@ -229,7 +229,7 @@ bot.on('ask.price', msg => {
                 return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'price', replyMarkup: 'hide'});
             }
 
-            const buttons = generateStartButtons(id);
+            const buttons = getStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
             GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
@@ -255,7 +255,7 @@ bot.on('/showBalance', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const buttons = generateStartButtons(id);
+            const buttons = getStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
             GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id)
@@ -281,7 +281,7 @@ bot.on('/showAllBalances', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList && isAdmin(id)) {
-            const buttons = generateStartButtons(id);
+            const buttons = getStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
 
             GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
