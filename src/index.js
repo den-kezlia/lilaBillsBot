@@ -12,8 +12,8 @@ const logger = winston.createLogger({
     format: winston.format.json(),
     defaultMeta: { service: 'lila-bills-bot' },
     transports: [
-      new winston.transports.File({ filename: './logs/error.log', level: 'error' }),
-      new winston.transports.File({ filename: './logs/combined.log' }),
+      new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+      new winston.transports.File({ filename: 'logs/combined.log' }),
     ],
 });
 
