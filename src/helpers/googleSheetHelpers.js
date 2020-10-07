@@ -1,3 +1,5 @@
+const config = require('../../config/config.json');
+
 let loadSheets = async (billsDoc, listsDoc, credentials, config) => {
     await billsDoc.useServiceAccountAuth(credentials, config.googleEmail);
     await listsDoc.useServiceAccountAuth(credentials, config.googleEmail);
@@ -160,6 +162,10 @@ const isUserInList = async (listsDoc, id) => {
     return isUserInList;
 }
 
+const getBillsSheetUrl = () => {
+    return `https://docs.google.com/spreadsheets/d/${config.billsGoogleSheetID}/`;
+}
+
 module.exports = {
     getUsersList: getUsersList,
     createNewBill: createNewBill,
@@ -167,5 +173,6 @@ module.exports = {
     loadSheets: loadSheets,
     getUserBalance: getUserBalance,
     getAllBalances: getAllBalances,
-    isUserInList: isUserInList
+    isUserInList: isUserInList,
+    getBillsSheetUrl: getBillsSheetUrl
 };
