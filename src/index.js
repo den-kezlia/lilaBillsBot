@@ -54,7 +54,7 @@ const sendNewBillNotifications = async (bill) => {
 
 const getStartButtons = (id) => {
     let buttons = [];
-    const userButtons = [Buttons.payBill.label, Buttons.myBalance.label];
+    const userButtons = [Buttons.payBill.label, Buttons.myBalance.label, Buttons.showLatestRecipes.label];
     const adminButtons = [Buttons.createBill.label, Buttons.showAllBalances.label];
 
     buttons.push(userButtons);
@@ -275,7 +275,7 @@ bot.on('/showBalance', msg => {
 // SHOW BALANCE //
 
 
-// SHOW ALL BALANCEs //
+// SHOW ALL BALANCES //
 bot.on('/showAllBalances', msg => {
     const id = msg.from.id;
 
@@ -300,7 +300,35 @@ bot.on('/showAllBalances', msg => {
         logger.error(new Error(error.stack));
     });
 });
-// SHOW ALL BALANCEs //
+// SHOW ALL BALANCES //
+
+
+// SHOW LATEST RECIPES //
+bot.on('/showLatestRecipes', msg => {
+    const id = msg.from.id;
+
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            const buttons = getStartButtons(id);
+            const replyMarkup = bot.keyboard(buttons, {resize: true});
+
+            GoogleSheetHelpers.getLatestRecipes(billsDoc, listsDoc, id).then(latestRecipes => {
+                const message = latestRecipes.map(item => {
+                    return `${item.amount}грн - ${item.description}`;
+                });
+
+                return bot.sendMessage(id, message.join('\n'), {replyMarkup});
+            }).catch(error => {
+                logger.error(new Error(error.stack));
+            });
+        } else {
+            sendBlockedMessage(id);
+        }
+    }).catch(error => {
+        logger.error(new Error(error.stack));
+    });
+});
+// SHOW LATEST RECIPES //
 
 
 bot.connect();
