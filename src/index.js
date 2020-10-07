@@ -231,11 +231,15 @@ bot.on('ask.price', msg => {
 
             const buttons = getStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
+            const billsSheetUrl = GoogleSheetHelpers.getBillsSheetUrl();
 
             GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
                 sendNewBillNotifications(bill);
             }).then(() => {
-                return bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
+                bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
+                bot.sendMessage(id, `Ссылка на excel - ${billsSheetUrl}`, {replyMarkup});
+
+                return
             }).catch(error => {
                 logger.error(new Error(error.stack));
             });
@@ -283,13 +287,17 @@ bot.on('/showAllBalances', msg => {
         if (isUserInList && isAdmin(id)) {
             const buttons = getStartButtons(id);
             const replyMarkup = bot.keyboard(buttons, {resize: true});
+            const billsSheetUrl = GoogleSheetHelpers.getBillsSheetUrl();
 
             GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
                 const message = allBalances.map(item => {
                     return `${item.name}: ${item.balance} ${item.balance >= 0 ? '🙂' : '🤨'}`;
                 });
 
-                return bot.sendMessage(id, message.join('\n'), {replyMarkup});
+                bot.sendMessage(id, message.join('\n'), {replyMarkup: 'hide'});
+                bot.sendMessage(id, `Ссылка на excel - ${billsSheetUrl}`, {replyMarkup});
+
+                return
             }).catch(error => {
                 logger.error(new Error(error.stack));
             });
