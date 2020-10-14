@@ -21,7 +21,7 @@ const logger = winston.createLogger({
 const billsDoc = new GoogleSpreadsheet(config.billsGoogleSheetID);
 const listsDoc = new GoogleSpreadsheet(config.listGoogleSheetID);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config).catch(error => {
-    logger.error(new Error(error.stack));
+    logger.log('error', error.stack);
 });
 let answers = {};
 
@@ -43,7 +43,7 @@ const sendNewBillNotifications = async (bill) => {
                             logger.error(new Error(`error code - ${error.error_code}. ${error.description}. In sendNewBillNotifications method`));
                         });
                 }).catch(error => {
-                    logger.error(new Error(error.stack));
+                    logger.log('error', error.stack);
                 })
             })
         }
@@ -54,16 +54,29 @@ const sendNewBillNotifications = async (bill) => {
 
 const getStartButtons = (id) => {
     let buttons = [];
-    const userButtons = [Buttons.payBill.label, Buttons.myBalance.label, Buttons.showLatestRecipes.label];
-    const adminButtons = [Buttons.createBill.label, Buttons.showAllBalances.label];
-
-    buttons.push(userButtons);
+    const userButtonsTopLine = [Buttons.myBalance.label, Buttons.payBill.label];
+    const userButtonsSecondLine = [Buttons.showLatestRecipes.label];
+    const adminButtonsTopLine = [Buttons.createBill.label, Buttons.showAllBalances.label];
+    const adminButtonsSecondLine = Buttons.showAllLatestRecipes.label;
 
     if (isAdmin(id)) {
-        buttons.push(adminButtons);
+        userButtonsSecondLine.push(adminButtonsSecondLine);
+        buttons.push(adminButtonsTopLine);
     }
 
+    buttons.push(userButtonsTopLine);
+    buttons.push(userButtonsSecondLine);
+
     return buttons;
+}
+
+const getReplyOptions = (id) => {
+    const buttons = getStartButtons(id);
+
+    return {
+        replyMarkup: bot.keyboard(buttons, {resize: true}),
+        parseMode: 'markdown'
+    }
 }
 
 const sendBlockedMessage = (id) => {
@@ -84,8 +97,10 @@ const bot = new TeleBot({
 
 bot.on(['/start'], msg => {
     const id = msg.from.id;
+    const date = new Date();
+    const message = `Start ${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
 
-    logger.log('info', 'Start', msg.from);
+    logger.log('info', message, msg.from);
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
@@ -97,7 +112,7 @@ bot.on(['/start'], msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 
@@ -113,7 +128,7 @@ bot.on('/payBill', msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 
@@ -135,7 +150,7 @@ bot.on('ask.payBill', msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 
@@ -151,23 +166,22 @@ bot.on('ask.payBillDescription', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const buttons = getStartButtons(id);
-            const replyMarkup = bot.keyboard(buttons, {resize: true});
+            const replyOptions = getReplyOptions(id);
 
             GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, answers[id].sum, description).then(() => {
                 GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-                    return bot.sendMessage(id, `Оплата '${answers[id].sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
+                    return bot.sendMessage(id, `Оплата '${answers[id].sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, replyOptions);
                 }).catch(error => {
-                    logger.error(new Error(error.stack));
+                    logger.log('error', error.stack);
                 })
             }).catch(error => {
-                logger.error(new Error(error.stack));
+                logger.log('error', error.stack);
             })
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 // PAY BILL //
@@ -179,12 +193,12 @@ bot.on('/createBill', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList && isAdmin(id)) {
-            return bot.sendMessage(id, 'Описание нового счет:', {ask: 'description', replyMarkup: 'hide'});
+            return bot.sendMessage(id, 'Описание нового счета:', {ask: 'description', replyMarkup: 'hide'});
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 
@@ -200,7 +214,7 @@ bot.on('ask.description', msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 
@@ -229,21 +243,20 @@ bot.on('ask.price', msg => {
                 return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'price', replyMarkup: 'hide'});
             }
 
-            const buttons = getStartButtons(id);
-            const replyMarkup = bot.keyboard(buttons, {resize: true});
+            const replyOptions = getReplyOptions(id);
 
             GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
                 sendNewBillNotifications(bill);
             }).then(() => {
-                return bot.sendMessage(id, `Счет добавлен 👍`, {replyMarkup});
+                return bot.sendMessage(id, `Счет добавлен 👍`, replyOptions);
             }).catch(error => {
-                logger.error(new Error(error.stack));
+                logger.log('error', error.stack);
             });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 // CREATE BILL //
@@ -255,21 +268,20 @@ bot.on('/showBalance', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const buttons = getStartButtons(id);
-            const replyMarkup = bot.keyboard(buttons, {resize: true});
+            const replyOptions = getReplyOptions(id);
 
             GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id)
                 .then(balance => {
-                    return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, {replyMarkup});
+                    return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, replyOptions);
                 })
                 .catch(error => {
-                    logger.error(new Error(error.stack));
+                    logger.log('error', error.stack);
                 });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 // SHOW BALANCE //
@@ -281,23 +293,22 @@ bot.on('/showAllBalances', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList && isAdmin(id)) {
-            const buttons = getStartButtons(id);
-            const replyMarkup = bot.keyboard(buttons, {resize: true});
+            const replyOptions = getReplyOptions(id);
 
             GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
                 const message = allBalances.map(item => {
-                    return `${item.name}: ${item.balance} ${item.balance >= 0 ? '🙂' : '🤨'}`;
+                    return `*${item.name}:* ${item.balance}грн ${item.balance >= 0 ? '🙂' : '🤨'}`;
                 });
 
-                return bot.sendMessage(id, message.join('\n'), {replyMarkup});
+                return bot.sendMessage(id, message.join('\n'), replyOptions);
             }).catch(error => {
-                logger.error(new Error(error.stack));
+                logger.log('error', error.stack);
             });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 // SHOW ALL BALANCES //
@@ -309,26 +320,68 @@ bot.on('/showLatestRecipes', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const buttons = getStartButtons(id);
-            const replyMarkup = bot.keyboard(buttons, {resize: true});
+            const replyOptions = getReplyOptions(id);
 
             GoogleSheetHelpers.getLatestRecipes(billsDoc, listsDoc, id).then(latestRecipes => {
-                const message = latestRecipes.map(item => {
-                    return `${item.amount}грн - ${item.description}`;
-                });
+                let message;
 
-                return bot.sendMessage(id, message.join('\n'), {replyMarkup});
+                if (latestRecipes.length > 0) {
+                    message = latestRecipes.map(item => {
+                        return `${item.description} - *${item.amount}грн*`;
+                    });
+                    message = message.join('\n');
+                } else {
+                    message = 'Вы еще не вводили никаких оплат с последней сдачи денег';
+                }
+
+                bot.sendMessage(id, message, replyOptions);
+                return;
             }).catch(error => {
-                logger.error(new Error(error.stack));
+                logger.log('error', error.stack);
             });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.error(new Error(error.stack));
+        logger.log('error', error.stack);
     });
 });
 // SHOW LATEST RECIPES //
+
+
+// SHOW ALL LATEST RECIPES //
+bot.on('/showAllLatestRecipes', msg => {
+    const id = msg.from.id;
+
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            const replyOptions = getReplyOptions(id);
+
+            GoogleSheetHelpers.getAllLatestRecipes(billsDoc).then(latestRecipes => {
+                let message = '';
+
+                if (latestRecipes.length > 0) {
+                    message = latestRecipes.map(item => {
+                        return `*${item.name}:*\n ${item.recipes.map(recipe => {
+                            return `${recipe.description} - *${recipe.amount}грн*`;
+                        }).join('\n')}\n`;
+                    });
+                    message = message.join('\n');
+                }
+
+                bot.sendMessage(id, message, replyOptions);
+                return;
+            }).catch(error => {
+                logger.log('error', error.stack);
+            });
+        } else {
+            sendBlockedMessage(id);
+        }
+    }).catch(error => {
+        logger.log('error', error.stack);
+    });
+});
+// SHOW ALL LATEST RECIPES //
 
 
 bot.connect();

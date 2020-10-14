@@ -16,7 +16,11 @@ module.exports = {
         command: '/showAllBalances'
     },
     showLatestRecipes: {
-        label: '🗞 Мои последние оплаты',
+        label: '🧾 Последние оплаты',
         command: '/showLatestRecipes'
+    },
+    showAllLatestRecipes: {
+        label: '🗞 Последние оплаты всех',
+        command: '/showAllLatestRecipes'
     }
 }

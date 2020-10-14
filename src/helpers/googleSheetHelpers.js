@@ -194,6 +194,47 @@ const isUserInList = async (listsDoc, id) => {
     return isUserInList;
 }
 
+const getAllLatestRecipes = async (billsDoc) => {
+    let userRow = 2;
+    let allLatestRecipes = []
+    const currentBillSheet = await billsDoc.sheetsByIndex[0];
+    await currentBillSheet.loadCells();
+
+    while (true) {
+        const name = currentBillSheet.getCell(userRow, 0).value;
+
+        if (name) {
+            let iterator = 3;
+            let recipes = [];
+
+            while (true) {
+                const amount = currentBillSheet.getCell(userRow, iterator).value;
+
+                if (amount) {
+                    recipes.push({
+                        amount: amount,
+                        description: currentBillSheet.getCell(userRow + 1, iterator).value
+                    });
+
+                    iterator = iterator + 1;
+                } else {
+                    break;
+                }
+            }
+
+            allLatestRecipes.push({
+                name: name,
+                recipes: recipes
+            })
+            userRow = userRow + 2;
+        } else {
+            break;
+        }
+    }
+
+    return allLatestRecipes;
+}
+
 module.exports = {
     getUsersList: getUsersList,
     createNewBill: createNewBill,
@@ -202,5 +243,6 @@ module.exports = {
     getUserBalance: getUserBalance,
     getAllBalances: getAllBalances,
     getLatestRecipes: getLatestRecipes,
-    isUserInList: isUserInList
+    isUserInList: isUserInList,
+    getAllLatestRecipes: getAllLatestRecipes
 };
