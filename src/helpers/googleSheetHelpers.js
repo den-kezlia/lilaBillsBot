@@ -149,6 +149,40 @@ const getAllBalances = async (billsDoc) => {
     return allBalances;
 }
 
+const getLatestRecipes = async (billsDoc, listsDoc, id) => {
+    let userRow;
+    let recipes = [];
+    let iterator = 3;
+    const usersList = await getUsersList(listsDoc);
+    usersList.forEach((user, index) => {
+        if (user.id.indexOf(id.toString()) > -1) {
+            userRow = index * 2 + 2;
+        }
+    });
+
+    if (userRow) {
+        const currentBillSheet = await billsDoc.sheetsByIndex[0];
+        await currentBillSheet.loadCells();
+
+        while (true) {
+            const amount = currentBillSheet.getCell(userRow, iterator).value;
+
+            if (amount) {
+                recipes.push({
+                    amount: currentBillSheet.getCell(userRow, iterator).value,
+                    description: currentBillSheet.getCell(userRow + 1, iterator).value
+                });
+
+                iterator = iterator + 1;
+            } else {
+                break;
+            }
+        }
+    }
+
+    return recipes;
+}
+
 const isUserInList = async (listsDoc, id) => {
     let isUserInList = false;
     const usersList = await getUsersList(listsDoc);
@@ -160,6 +194,48 @@ const isUserInList = async (listsDoc, id) => {
     });
 
     return isUserInList;
+}
+
+const getAllLatestRecipes = async (billsDoc) => {
+    let userRow = 2;
+    let allLatestRecipes = []
+    const currentBillSheet = await billsDoc.sheetsByIndex[0];
+    await currentBillSheet.loadCells();
+
+    while (true) {
+        const name = currentBillSheet.getCell(userRow, 0).value;
+
+        if (name) {
+            let iterator = 3;
+            let recipes = [];
+
+            while (true) {
+                const amount = currentBillSheet.getCell(userRow, iterator).value;
+
+                if (amount) {
+                    recipes.push({
+                        amount: amount,
+                        description: currentBillSheet.getCell(userRow + 1, iterator).value
+                    });
+
+                    iterator = iterator + 1;
+                } else {
+                    break;
+                }
+            }
+
+            allLatestRecipes.push({
+                name: name,
+                recipes: recipes
+            })
+
+            userRow = userRow + 2;
+        } else {
+            break;
+        }
+    }
+
+    return allLatestRecipes;
 }
 
 const getBillsSheetUrl = () => {
@@ -174,5 +250,7 @@ module.exports = {
     getUserBalance: getUserBalance,
     getAllBalances: getAllBalances,
     isUserInList: isUserInList,
+    getLatestRecipes: getLatestRecipes,
+    getAllLatestRecipes: getAllLatestRecipes,
     getBillsSheetUrl: getBillsSheetUrl
 };
