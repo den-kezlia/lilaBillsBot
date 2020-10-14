@@ -21,7 +21,7 @@ const logger = winston.createLogger({
 const billsDoc = new GoogleSpreadsheet(config.billsGoogleSheetID);
 const listsDoc = new GoogleSpreadsheet(config.listGoogleSheetID);
 GoogleSheetHelpers.loadSheets(billsDoc, listsDoc, credentials, config).catch(error => {
-    logger.log('error', error.stack);
+    logger.log('error', error.description);
 });
 let answers = {};
 
@@ -43,7 +43,7 @@ const sendNewBillNotifications = async (bill) => {
                             logger.error(new Error(`error code - ${error.error_code}. ${error.description}. In sendNewBillNotifications method`));
                         });
                 }).catch(error => {
-                    logger.log('error', error.stack);
+                    logger.log('error', error.description);
                 })
             })
         }
@@ -112,7 +112,7 @@ bot.on(['/start'], msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 
@@ -128,7 +128,7 @@ bot.on('/payBill', msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 
@@ -150,7 +150,7 @@ bot.on('ask.payBill', msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 
@@ -172,16 +172,16 @@ bot.on('ask.payBillDescription', msg => {
                 GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
                     return bot.sendMessage(id, `Оплата '${answers[id].sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, replyOptions);
                 }).catch(error => {
-                    logger.log('error', error.stack);
+                    logger.log('error', error.description);
                 })
             }).catch(error => {
-                logger.log('error', error.stack);
+                logger.log('error', error.description);
             })
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 // PAY BILL //
@@ -198,7 +198,7 @@ bot.on('/createBill', msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 
@@ -214,7 +214,7 @@ bot.on('ask.description', msg => {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 
@@ -223,6 +223,7 @@ bot.on('ask.price', msg => {
     const price = Number(msg.text);
     const date = new Date();
     const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+    const replyOptions = getReplyOptions(id);
     const bill = {
         date: formattedDate,
         description: answers[id].description,
@@ -243,20 +244,20 @@ bot.on('ask.price', msg => {
                 return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'price', replyMarkup: 'hide'});
             }
 
-            const replyOptions = getReplyOptions(id);
-
             GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
                 sendNewBillNotifications(bill);
             }).then(() => {
-                return bot.sendMessage(id, `Счет добавлен 👍`, replyOptions);
+                bot.sendMessage(id, `Счет добавлен 👍`, replyOptions);
+
+                return
             }).catch(error => {
-                logger.log('error', error.stack);
+                logger.log('error', error.description);
             });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 // CREATE BILL //
@@ -265,23 +266,23 @@ bot.on('ask.price', msg => {
 // SHOW BALANCE //
 bot.on('/showBalance', msg => {
     const id = msg.from.id;
+    const replyOptions = getReplyOptions(id);
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const replyOptions = getReplyOptions(id);
 
             GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id)
                 .then(balance => {
                     return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, replyOptions);
                 })
                 .catch(error => {
-                    logger.log('error', error.stack);
+                    logger.log('error', error.description);
                 });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 // SHOW BALANCE //
@@ -290,25 +291,24 @@ bot.on('/showBalance', msg => {
 // SHOW ALL BALANCES //
 bot.on('/showAllBalances', msg => {
     const id = msg.from.id;
+    const replyOptions = getReplyOptions(id);
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList && isAdmin(id)) {
-            const replyOptions = getReplyOptions(id);
-
             GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
                 const message = allBalances.map(item => {
                     return `*${item.name}:* ${item.balance}грн ${item.balance >= 0 ? '🙂' : '🤨'}`;
-                });
+                }).join('\n');
 
-                return bot.sendMessage(id, message.join('\n'), replyOptions);
+                return bot.sendMessage(id, message, replyOptions);
             }).catch(error => {
-                logger.log('error', error.stack);
+                logger.log('error', error.description);
             });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 // SHOW ALL BALANCES //
@@ -317,10 +317,10 @@ bot.on('/showAllBalances', msg => {
 // SHOW LATEST RECIPES //
 bot.on('/showLatestRecipes', msg => {
     const id = msg.from.id;
+    const replyOptions = getReplyOptions(id);
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const replyOptions = getReplyOptions(id);
 
             GoogleSheetHelpers.getLatestRecipes(billsDoc, listsDoc, id).then(latestRecipes => {
                 let message;
@@ -335,15 +335,16 @@ bot.on('/showLatestRecipes', msg => {
                 }
 
                 bot.sendMessage(id, message, replyOptions);
-                return;
+
+                return
             }).catch(error => {
-                logger.log('error', error.stack);
+                logger.log('error', error.description);
             });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 // SHOW LATEST RECIPES //
@@ -352,11 +353,10 @@ bot.on('/showLatestRecipes', msg => {
 // SHOW ALL LATEST RECIPES //
 bot.on('/showAllLatestRecipes', msg => {
     const id = msg.from.id;
+    const replyOptions = getReplyOptions(id);
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const replyOptions = getReplyOptions(id);
-
             GoogleSheetHelpers.getAllLatestRecipes(billsDoc).then(latestRecipes => {
                 let message = '';
 
@@ -369,16 +369,15 @@ bot.on('/showAllLatestRecipes', msg => {
                     message = message.join('\n');
                 }
 
-                bot.sendMessage(id, message, replyOptions);
-                return;
+                return bot.sendMessage(id, message, replyOptions);
             }).catch(error => {
-                logger.log('error', error.stack);
+                logger.log('error', error.description);
             });
         } else {
             sendBlockedMessage(id);
         }
     }).catch(error => {
-        logger.log('error', error.stack);
+        logger.log('error', error.description);
     });
 });
 // SHOW ALL LATEST RECIPES //
