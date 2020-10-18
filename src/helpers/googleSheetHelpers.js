@@ -239,7 +239,7 @@ const getAllLatestRecipes = async (billsDoc) => {
 }
 
 const getBillsSheetUrl = () => {
-    return `https://docs.google.com/spreadsheets/d/${config.billsGoogleSheetID}/`;
+    return `[Excel Link](https://docs.google.com/spreadsheets/d/${config.billsGoogleSheetID}/)`;
 }
 
 module.exports = {

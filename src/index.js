@@ -7,6 +7,7 @@ const Buttons = require('./helpers/buttons');
 const AdminIds = require('../config/adminIDs');
 const winston = require('winston');
 const path = require('path');
+const { log } = require('console');
 
 const logger = winston.createLogger({
     level: 'info',
@@ -229,6 +230,7 @@ bot.on('ask.price', msg => {
         description: answers[id].description,
         price: price
     };
+    const billsLink = GoogleSheetHelpers.getBillsSheetUrl();
 
     logger.log('info', 'createBill', {
         id: id,
@@ -247,7 +249,7 @@ bot.on('ask.price', msg => {
             GoogleSheetHelpers.createNewBill(billsDoc, listsDoc, bill).then(() => {
                 sendNewBillNotifications(bill);
             }).then(() => {
-                bot.sendMessage(id, `Счет добавлен 👍`, replyOptions);
+                bot.sendMessage(id, `Счет добавлен 👍 \n${billsLink}`, replyOptions);
 
                 return
             }).catch(error => {
@@ -292,6 +294,7 @@ bot.on('/showBalance', msg => {
 bot.on('/showAllBalances', msg => {
     const id = msg.from.id;
     const replyOptions = getReplyOptions(id);
+    const billsLink = GoogleSheetHelpers.getBillsSheetUrl();
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList && isAdmin(id)) {
@@ -300,7 +303,7 @@ bot.on('/showAllBalances', msg => {
                     return `*${item.name}:* ${item.balance}грн ${item.balance >= 0 ? '🙂' : '🤨'}`;
                 }).join('\n');
 
-                return bot.sendMessage(id, message, replyOptions);
+                return bot.sendMessage(id, `${message} \n${billsLink}`, replyOptions);
             }).catch(error => {
                 logger.log('error', error.description);
             });
@@ -354,6 +357,7 @@ bot.on('/showLatestRecipes', msg => {
 bot.on('/showAllLatestRecipes', msg => {
     const id = msg.from.id;
     const replyOptions = getReplyOptions(id);
+    const billsLink = GoogleSheetHelpers.getBillsSheetUrl();
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
@@ -365,11 +369,10 @@ bot.on('/showAllLatestRecipes', msg => {
                         return `*${item.name}:*\n ${item.recipes.map(recipe => {
                             return `${recipe.description} - *${recipe.amount}грн*`;
                         }).join('\n')}\n`;
-                    });
-                    message = message.join('\n');
+                    }).join('\n');
                 }
 
-                return bot.sendMessage(id, message, replyOptions);
+                return bot.sendMessage(id, `${message}${billsLink}`, replyOptions);
             }).catch(error => {
                 logger.log('error', error.description);
             });
