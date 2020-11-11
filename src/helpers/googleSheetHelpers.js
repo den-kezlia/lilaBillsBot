@@ -152,6 +152,7 @@ const getAllBalances = async (billsDoc) => {
 const getLatestRecipes = async (billsDoc, listsDoc, id) => {
     let userRow;
     let recipes = [];
+    let listIndex = 0;
     let iterator = 3;
     const usersList = await getUsersList(listsDoc);
     usersList.forEach((user, index) => {
@@ -161,7 +162,7 @@ const getLatestRecipes = async (billsDoc, listsDoc, id) => {
     });
 
     if (userRow) {
-        const currentBillSheet = await billsDoc.sheetsByIndex[0];
+        let currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
         await currentBillSheet.loadCells();
 
         while (true) {
@@ -174,6 +175,11 @@ const getLatestRecipes = async (billsDoc, listsDoc, id) => {
                 });
 
                 iterator = iterator + 1;
+            } else if (recipes.length < 10 && listIndex + 1 < billsDoc.sheetsByIndex.length) {
+                iterator = 3;
+                listIndex = listIndex + 1;
+                currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
+                await currentBillSheet.loadCells();
             } else {
                 break;
             }
@@ -199,7 +205,8 @@ const isUserInList = async (listsDoc, id) => {
 const getAllLatestRecipes = async (billsDoc) => {
     let userRow = 2;
     let allLatestRecipes = []
-    const currentBillSheet = await billsDoc.sheetsByIndex[0];
+    let listIndex = 0;
+    let currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
     await currentBillSheet.loadCells();
 
     while (true) {
@@ -219,6 +226,11 @@ const getAllLatestRecipes = async (billsDoc) => {
                     });
 
                     iterator = iterator + 1;
+                } else if (recipes.length < 10 && listIndex + 1 < billsDoc.sheetsByIndex.length) {
+                    listIndex = listIndex + 1;
+                    currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
+                    await currentBillSheet.loadCells();
+                    iterator = 3;
                 } else {
                     break;
                 }
