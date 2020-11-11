@@ -154,6 +154,7 @@ const getLatestRecipes = async (billsDoc, listsDoc, id) => {
     let recipes = [];
     let listIndex = 0;
     let iterator = 3;
+    const maxRecipesCount = 10;
     const usersList = await getUsersList(listsDoc);
     usersList.forEach((user, index) => {
         if (user.id.indexOf(id.toString()) > -1) {
@@ -168,14 +169,14 @@ const getLatestRecipes = async (billsDoc, listsDoc, id) => {
         while (true) {
             const amount = currentBillSheet.getCell(userRow, iterator).value;
 
-            if (amount) {
+            if (amount && recipes.length < maxRecipesCount) {
                 recipes.push({
                     amount: currentBillSheet.getCell(userRow, iterator).value,
                     description: currentBillSheet.getCell(userRow + 1, iterator).value
                 });
 
                 iterator = iterator + 1;
-            } else if (recipes.length < 10 && listIndex + 1 < billsDoc.sheetsByIndex.length) {
+            } else if (recipes.length < maxRecipesCount && listIndex + 1 < billsDoc.sheetsByIndex.length) {
                 iterator = 3;
                 listIndex = listIndex + 1;
                 currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
@@ -206,6 +207,7 @@ const getAllLatestRecipes = async (billsDoc) => {
     let userRow = 2;
     let allLatestRecipes = []
     let listIndex = 0;
+    const maxRecipesCount = 10;
     let currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
     await currentBillSheet.loadCells();
 
@@ -226,7 +228,7 @@ const getAllLatestRecipes = async (billsDoc) => {
                     });
 
                     iterator = iterator + 1;
-                } else if (recipes.length < 10 && listIndex + 1 < billsDoc.sheetsByIndex.length) {
+                } else if (recipes.length < maxRecipesCount && listIndex + 1 < billsDoc.sheetsByIndex.length) {
                     listIndex = listIndex + 1;
                     currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
                     await currentBillSheet.loadCells();
@@ -254,6 +256,83 @@ const getBillsSheetUrl = () => {
     return `[Excel Link](https://docs.google.com/spreadsheets/d/${config.billsGoogleSheetID}/)`;
 }
 
+const cancelLatestRecipe = async (billsDoc, listsDoc, id) => {
+    let userRow;
+    let listIndex = 0;
+    let iterator = 3;
+    let status = false;
+    const usersList = await getUsersList(listsDoc);
+    usersList.forEach((user, index) => {
+        if (user.id.indexOf(id.toString()) > -1) {
+            userRow = index * 2 + 2;
+        }
+    });
+
+    if (userRow) {
+        let currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
+        await currentBillSheet.loadCells();
+
+        while (true) {
+            const amount = currentBillSheet.getCell(userRow, iterator).value;
+
+            if (amount) {
+                iterator = iterator + 1;
+            } else if (iterator > 3) {
+                const billCell = currentBillSheet.getCell(userRow, iterator - 1);
+                const billDescriptionCell = currentBillSheet.getCell(userRow + 1, iterator - 1);
+                billCell.value = '';
+                billDescriptionCell.value = '';
+
+                await currentBillSheet.saveUpdatedCells();
+                status = true;
+
+                break;
+            } else {
+                break;
+            }
+        }
+    }
+
+    return status;
+}
+
+const getLatestRecipe = async (billsDoc, listsDoc, id) => {
+    let userRow;
+    let listIndex = 0;
+    let iterator = 3;
+    let recipe;
+    const usersList = await getUsersList(listsDoc);
+    usersList.forEach((user, index) => {
+        if (user.id.indexOf(id.toString()) > -1) {
+            userRow = index * 2 + 2;
+        }
+    });
+
+    if (userRow) {
+        let currentBillSheet = await billsDoc.sheetsByIndex[listIndex];
+        await currentBillSheet.loadCells();
+
+        while (true) {
+            const amount = currentBillSheet.getCell(userRow, iterator).value;
+
+            if (amount) {
+                iterator = iterator + 1;
+            } else if (iterator > 3) {
+                recipe = {
+                    amount: currentBillSheet.getCell(userRow, iterator - 1).value,
+                    description: currentBillSheet.getCell(userRow + 1, iterator - 1).value
+                }
+
+                break;
+            } else {
+                break;
+            }
+        }
+    }
+
+    return recipe;
+}
+
 module.exports = {
     getUsersList: getUsersList,
     createNewBill: createNewBill,
@@ -264,5 +343,7 @@ module.exports = {
     isUserInList: isUserInList,
     getLatestRecipes: getLatestRecipes,
     getAllLatestRecipes: getAllLatestRecipes,
-    getBillsSheetUrl: getBillsSheetUrl
+    getBillsSheetUrl: getBillsSheetUrl,
+    cancelLatestRecipe: cancelLatestRecipe,
+    getLatestRecipe: getLatestRecipe
 };

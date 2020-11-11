@@ -39,7 +39,7 @@ const sendNewBillNotifications = async (bill) => {
                 GoogleSheetHelpers
                     .getUserBalance(billsDoc, listsDoc, id)
                     .then(balance => {
-                        bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`)
+                        bot.sendMessage(id, `Добавлена новая оплата: "${bill.description}"\nСдаем по: ${bill.price}\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '😡'}`)
                         .catch(error => {
                             logger.error(new Error(`error code - ${error.error_code}. ${error.description}. In sendNewBillNotifications method`));
                         });
@@ -55,18 +55,20 @@ const sendNewBillNotifications = async (bill) => {
 
 const getStartButtons = (id) => {
     let buttons = [];
-    const userButtonsTopLine = [Buttons.myBalance.label, Buttons.payBill.label];
-    const userButtonsSecondLine = [Buttons.showLatestRecipes.label];
-    const adminButtonsTopLine = [Buttons.createBill.label, Buttons.showAllBalances.label];
-    const adminButtonsSecondLine = Buttons.showAllLatestRecipes.label;
 
     if (isAdmin(id)) {
-        userButtonsSecondLine.push(adminButtonsSecondLine);
-        buttons.push(adminButtonsTopLine);
-    }
+        buttons.push(
+            [Buttons.showAllLatestRecipes.label, Buttons.showAllBalances.label, Buttons.createBill.label],
 
-    buttons.push(userButtonsTopLine);
-    buttons.push(userButtonsSecondLine);
+            [Buttons.showLatestRecipes.label, Buttons.myBalance.label],
+            [Buttons.cancelLatestRecipe.label, Buttons.payBill.label]
+        );
+    } else {
+        buttons.push(
+            [Buttons.showLatestRecipes.label, Buttons.myBalance.label],
+            [Buttons.cancelLatestRecipe.label, Buttons.payBill.label]
+        );
+    }
 
     return buttons;
 }
@@ -171,7 +173,7 @@ bot.on('ask.payBillDescription', msg => {
 
             GoogleSheetHelpers.payBill(billsDoc, listsDoc, id, answers[id].sum, description).then(() => {
                 GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id).then(balance => {
-                    return bot.sendMessage(id, `Оплата '${answers[id].sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, replyOptions);
+                    return bot.sendMessage(id, `Оплата '${answers[id].sum}' зафиксирована 👍\nВаш баланс: ${balance} ${balance >= 0 ? '🙂' : '😡'}`, replyOptions);
                 }).catch(error => {
                     logger.log('error', error.description);
                 })
@@ -275,7 +277,7 @@ bot.on('/showBalance', msg => {
 
             GoogleSheetHelpers.getUserBalance(billsDoc, listsDoc, id)
                 .then(balance => {
-                    return bot.sendMessage(id, `Баланс: ${balance} ${balance >= 0 ? '🙂' : '🤨'}`, replyOptions);
+                    return bot.sendMessage(id, `Баланс: ${balance}грн ${balance >= 0 ? '🙂' : '😡'}`, replyOptions);
                 })
                 .catch(error => {
                     logger.log('error', error.description);
@@ -300,7 +302,7 @@ bot.on('/showAllBalances', msg => {
         if (isUserInList && isAdmin(id)) {
             GoogleSheetHelpers.getAllBalances(billsDoc).then(allBalances => {
                 const message = allBalances.map(item => {
-                    return `*${item.name}:* ${item.balance}грн ${item.balance >= 0 ? '🙂' : '🤨'}`;
+                    return `*${item.name}:* ${item.balance}грн ${item.balance >= 0 ? '🙂' : '😡'}`;
                 }).join('\n');
 
                 return bot.sendMessage(id, `${message} \n${billsLink}`, replyOptions);
@@ -385,5 +387,80 @@ bot.on('/showAllLatestRecipes', msg => {
 });
 // SHOW ALL LATEST RECIPES //
 
+
+// CANCEL THE LATEST RECIPE //
+// PAY BILL //
+bot.on('/cancelLatestRecipe', msg => {
+    const id = msg.from.id;
+    const replyOptions = getReplyOptions(id);
+    let message;
+
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            GoogleSheetHelpers.getLatestRecipe(billsDoc, listsDoc, id, 1).then(recipe => {
+                if (recipe) {
+                    message = `Вы уверены, что хотите отменить последнюю оплату?\n${recipe.amount}грн\n${recipe.description}`;
+                    const replyMarkup = bot.inlineKeyboard([
+                        [bot.inlineButton('Отмена', {callback: JSON.stringify({
+                            type: 'cancelLatestPayment'
+                        })}),
+                        bot.inlineButton('Подтвердить', {callback: JSON.stringify({
+                            type: 'approveLatestPayment'
+                        })})]
+                    ]);
+
+                    return bot.sendMessage(id, message, {replyMarkup});
+                } else {
+                    message = `После новой сдачи у вас нет оплат`;
+                    bot.sendMessage(id, `${message}`, replyOptions);
+                }
+            })
+        } else {
+            sendBlockedMessage(id);
+        }
+    }).catch(error => {
+        logger.log('error', error.description);
+    });
+});
+
+bot.on('callbackQuery', msg => {
+    const id = msg.from.id;
+    const data = JSON.parse(msg.data);
+    const replyOptions = getReplyOptions(id);
+    let message;
+
+    GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
+        if (isUserInList) {
+            switch (data.type) {
+                case 'cancelLatestPayment':
+                    message = 'Отмена';
+                    bot.sendMessage(id, `${message}`, replyOptions);
+
+                    break;
+                case 'approveLatestPayment':
+                    GoogleSheetHelpers.cancelLatestRecipe(billsDoc, listsDoc, id).then(status => {
+                        if (status) {
+                            message = 'Последняя оплата удалена';
+                        } else {
+                            message = 'Ошибка. Попробуйте позже'
+                        }
+
+                        bot.sendMessage(id, `${message}`, replyOptions);
+                    }).catch(error => {
+                        logger.log('error', error.description);
+                    });
+
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            sendBlockedMessage(id);
+        }
+    }).catch(error => {
+        logger.log('error', error.description);
+    });
+});
+// CANCEL THE LATEST RECIPE //
 
 bot.connect();
