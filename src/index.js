@@ -138,10 +138,10 @@ bot.on('ask.payBill', msg => {
 
     GoogleSheetHelpers.isUserInList(listsDoc, id).then(isUserInList => {
         if (isUserInList) {
-            const sum = Number(msg.text);
+            const sum = Number(msg.text.replace(',', '.'));
 
             if (isNaN(sum)) {
-                return bot.sendMessage(id, 'Вы ввели неверный формат суммы. Используйте только цифры, не используйте точки или запятые', {ask: 'payBill', replyMarkup: 'hide'});
+                return bot.sendMessage(id, 'Вы ввели неверный формат суммы.', {ask: 'payBill', replyMarkup: 'hide'});
             } else {
                 answers[id] = {};
                 answers[id].sum = sum;
@@ -221,7 +221,7 @@ bot.on('ask.description', msg => {
 
 bot.on('ask.price', msg => {
     const id = msg.from.id;
-    const price = Number(msg.text);
+    const price = Number(msg.text.replace(',', '.'));
     const date = new Date();
     const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
     const replyOptions = getReplyOptions(id);
