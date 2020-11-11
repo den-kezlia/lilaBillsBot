@@ -399,7 +399,7 @@ bot.on('/cancelLatestRecipe', msg => {
         if (isUserInList) {
             GoogleSheetHelpers.getLatestRecipe(billsDoc, listsDoc, id, 1).then(recipe => {
                 if (recipe) {
-                    message = `Вы уверены, что хотите отменить последнюю оплату?\n${recipe.amount}грн\n${recipe.description}`;
+                    message = `Вы уверены, что хотите удалить последнюю оплату?\n${recipe.amount}грн\n${recipe.description}`;
                     const replyMarkup = bot.inlineKeyboard([
                         [bot.inlineButton('Отмена', {callback: JSON.stringify({
                             type: 'cancelLatestPayment'
